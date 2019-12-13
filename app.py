@@ -3,11 +3,14 @@ from decouple import config
 import requests, pprint, random
 app = Flask(__name__)
 
-
+# 텔레그램 API #
 url = 'https://api.telegram.org'
 token = config('TELEGRAM_BOT_TOKEN')
 chat_id = config('CHAT_ID')
 
+# google API #
+google_url = 'https://translation.googleapis.com/language/translate/v2'
+google_key = config('GOOGLE_TOKEN')
 
 @app.route('/write')
 def write():
@@ -80,19 +83,25 @@ token은 web hook을 구현하기 위한 요소 중 하나이다. 타인에게�
 #      return '', 200
 
 
-''' 메아리 기능 만들기'''
-@app.route(f'/{token}', methods=['POST'])
-def telegram():
-    # 1. 텔레그램이 보내주는 데이터 구조 확인
-    pprint.pprint(request.get_json())
-    # 2. 사용자 아이디, 메세지 추출
-    chat_id = request.get_json()["message"]["from"]["id"]
-    message = request.get_json()["message"]["text"]
-    # 3. 메아리 답장 보내기
-    requests.get(f'{url}/bot{token}/sendMessage?chat_id={chat_id}&text={message}')
-    return '', 200
 
-'''로또라는 메시지를 받으면 로또 번호 6개 돌려주기'''
+
+
+'''-------------------------------메아리기능 만들기 ------------------------------'''
+
+# @app.route(f'/{token}', methods=['POST'])
+# def telegram():
+#     # 1. 텔레그램이 보내주는 데이터 구조 확인
+#     pprint.pprint(request.get_json())
+#     # 2. 사용자 아이디, 메세지 추출
+#     chat_id = request.get_json()["message"]["from"]["id"]
+#     message = request.get_json()["message"]["text"]
+#     # 3. 메아리 답장 보내기
+#     requests.get(f'{url}/bot{token}/sendMessage?chat_id={chat_id}&text={message}')
+#     return '', 200
+
+
+
+'''---------------------로또라는 메시지를 받으면 로또 번호 6개 돌려주기----------------------'''
 
 # @app.route(f'/{token}', methods=['POST'])
 # def telegram():
@@ -113,6 +122,41 @@ def telegram():
 
 #     requests.get(f'{url}/bot{token}/sendMessage?chat_id={chat_id}&text={result}')
 #     return '', 200
+
+
+
+'''---------------------------번역 기능 추가-------------------------'''
+
+
+@app.route(f'/{token}', methods=['POST'])
+def telegram():
+    # 사용자 아이디, 메세지 추출
+    chat_id = request.get_json()["message"]["from"]["id"]
+    message = request.get_json()["message"]["text"]
+
+    # 로또 라고 입력하면 로또번호
+    if message == '로또':
+        result = random.sample(range(1,46),6)
+
+    # 사용자가 /번역 이라고 말하면 한영 번역 제공
+    elif message[:4] == '/번역 ' :
+        data = {
+            'q' : message[4:], 
+            'source' : 'ko',
+            'target' : 'en'
+        }
+
+        response = requests.post(f'{google_url}?key={google_key}', data).json()
+        result = response['data']['translations'][0]['translatedText']
+
+    # 그 외의 경우엔 메아리
+    else :
+        result = '"로또" 혹은 "/번역 안녕하세요"라고 입력해보세요'
+
+    requests.get(f'{url}/bot{token}/sendMessage?chat_id={chat_id}&text={result}')
+
+    return '', 200
+
 
 
 
