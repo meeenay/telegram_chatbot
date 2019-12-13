@@ -269,6 +269,21 @@ print(artists.get("아티스트").get("민수"))
 
 ## 3.2.4. 환경변수 생성
 
+> 자신의 token이 github에 공개되는 것을 방지하기 위해 개인정보와 관련된 내용들 ( ID, token) 환경변수를 생성하여 관리하자 
+
+
+
+* 아래의 명령어로 프로젝트에 필요한 환경변수 툴을 설치한다
+
+```bash
+ $ pip install python-decouple 
+```
+
+*  app.py와 같은 루트에 .env파일을 생성한다
+* .gitignore의 설정 때문에 .env 파일은 github에 올라가지 않는다. 따라서 보안이 가능하다
+* .env 내에 환경변수 만들기 (토큰, 아이디)
+* 이 때 띄어쓰기와 ' '조심 할 것
+
 
 
 
@@ -481,4 +496,134 @@ def telegram():
     return '', 200
 
 ```
+
+
+
+
+
+## 6. . Web hook을 이용해 메세지 업데이트 받기
+
+### 6.1 google cloud translation API
+
+*  [구글번역 cloud API](ttps://cloud.google.com/translate/)에서 사용자 인증정보로 API키를 만들자
+* [다음의 페이지](https://cloud.google.com/translate/docs/quickstart)에서 내용을 참고하자 
+
+
+
+![image-20191213162309972](images/image-20191213162309972.png)
+
+* 페이지의 다음 내용을 보면
+	```python
+curl -s -X POST -H "Content-Type: application/json" \
+    -H "Authorization: Bearer "$(gcloud auth application-default print-access-token) \
+    --data "{
+          'q': 'The Great Pyramid of Giza (also known as the Pyramid of Khufu or the Pyramid of Cheops) is the oldest and largest of the three pyramids in the Giza pyramid complex.',
+          'source': 'en', 
+          'target': 'es', 
+          'format': 'text'
+  }" "https://translation.googleapis.com/language/translate/v2"
+  ```
+
+	* Post로 요청을 보내야하며
+	
+	* 번역문장의 입력 방식이 다음과 같음을 확인할 수 있다
+	
+	  ```python
+	  data "{
+	  'q': 'The Great Wall', # 번역할 내용
+	  'source': 'en', # 영어
+	  'target': 'es', # 에스파냐어로
+	  'format': 'text'
+	      }"
+	  ```
+	
+	  
+
+
+
+### 6.2 번역 프로그래밍을 위한 명령문 연습
+
+![image-20191213163133888](images/image-20191213163133888.png)
+
+
+
+* 결과
+
+  ```python
+  (venv)
+  student@M16041 MINGW64 /c/telegram_bot (master)
+  $ python translate.py
+  {'data': {'translations': [{'translatedText': 'Mother Panda has a baby'}]}}
+  ```
+
+![image-20191213164540595](images/image-20191213164540595.png)
+
+
+
+### 6.2 번역 기능 프로그래밍 하기 
+
+
+
+```python
+@app.route(f'/{token}', methods=['POST'])
+def telegram():
+    # 사용자 아이디, 메세지 추출
+    chat_id = request.get_json()["message"]["from"]["id"]
+    message = request.get_json()["message"]["text"]
+
+    # 로또 라고 입력하면 로또번호
+    if message == '로또':
+        result = random.sample(range(1,46),6)
+
+    # 사용자가 /번역 이라고 말하면 한영 번역 제공
+    elif message[:4] == '/번역 ' :
+        data = {
+            'q' : message[4:], 
+            'source' : 'ko',
+            'target' : 'en'
+            'format': 'text'
+        }
+
+        response = requests.post(f'{google_url}?key={google_key}', data).json()
+        result = response['data']['translations'][0]['translatedText']
+
+    # 그 외의 경우엔 메아리
+    else :
+        result = '"로또" 혹은 "/번역 안녕하세요"라고 입력해보세요'
+
+    requests.get(f'{url}/bot{token}/sendMessage?chat_id={chat_id}&text={result}')
+
+    return '', 200
+```
+
+
+
+
+
+## 7. 서버 배포
+
+#### : Python Anywhere 이용
+
+* [python anywhere](https://www.pythonanywhere.com/)페이지에 가입하고 로그인하기
+* myDashBoard를 클릭하기
+* Web > 신규 페이지 생성 > next버튼 누르며 추가
+* 결과창에서 code > source code > go to directory![image-20191213171714554](images/image-20191213171714554.png)
+
+
+
+* consoles > bash 
+
+  ```bash
+  $ pip3 install python-decouple --user
+  ```
+
+  
+
+* .env 생성 후 -> 앞서 작성한 파일 내용 붙여넣기 
+
+* reload  하기 
+
+* webhook url을 새로 생성한 주소로 대체하기 (https://형태로 주소작성필수)
+
+  
 
